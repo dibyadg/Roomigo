@@ -3,17 +3,13 @@ import oracledb
 
 app = Flask(__name__)
 
-# ORACLE DB CONNECTION -----------------------------
 def get_db_connection():
-    connection = oracledb.connect(
+    return oracledb.connect(
         user="bindush",
         password="bindush",
-        dsn="141.216.26.7/csep"  
+        dsn="141.216.26.7/csep"  # Use the working DSN
     )
-    return connection
-# --------------------------------------------------
 
-@app.route("/")
 @app.route("/")
 def home():
     try:
@@ -23,10 +19,9 @@ def home():
         students = cur.fetchall()
         cur.close()
         conn.close()
-        return f"Connection Successful! Students: {students}"
+        return render_template("home.html", students=students)
     except Exception as e:
         return f"Error connecting to Oracle DB: {e}"
-
 
 if __name__ == "__main__":
     app.run(debug=True)
