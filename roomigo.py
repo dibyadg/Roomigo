@@ -1,66 +1,198 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, abort
 import oracledb
 
 app = Flask(__name__)
 
+# ----------------- ORACLE CONNECTION ----------------- #
 def get_db_connection():
     return oracledb.connect(
         user="dibyadg",
         password="dibyadg",
-        dsn="141.216.26.7/csep"  # Use your working DSN
+        dsn="141.216.26.7/csep"
     )
 
+
+# ----------------- HOME PAGE ----------------- #
 @app.route("/")
 def home():
+    conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Fetch students
-        cur.execute("SELECT * FROM Student")
+        # Students shaped as:
+        # (studentID, sname, email, password, gender, location)
+        # If your real table is (studentID, sname, email, gender, location),
+        # we just put '' as a fake password so the tuple length matches.
+        cur.execute("""
+            SELECT studentID,
+                   sname,
+                   email,
+                   '' AS password,
+                   gender,
+                   location
+            FROM Student
+        """)
         students = cur.fetchall()
 
-        # Fetch listings joined with students
+        # Listings shaped as:
+        # (sname, address, rent, status, availableFrom, studentID)
         cur.execute("""
-            SELECT s.sname, l.address, l.rent, l.status, l.availableFrom
+            SELECT s.sname,
+                   l.address,
+                   l.rent,
+                   l.status,
+                   l.availableFrom,
+                   s.studentID
             FROM Listing l
             JOIN Student s ON l.studentID = s.studentID
         """)
         listings = cur.fetchall()
 
-        # Fetch profiles joined with students
-        cur.execute("""
-            SELECT s.sname, p.age, p.lifestyle
-            FROM Profile p
-            JOIN Student s ON p.studentID = s.studentID
-        """)
-        profiles = cur.fetchall()
-
-        # Fetch latest 5 messages with sender and receiver names
-        cur.execute("""
-            SELECT s1.sname AS sender, s2.sname AS receiver, m.content, m.sentDate
-            FROM Message m
-            JOIN Student s1 ON m.senderID = s1.studentID
-            JOIN Student s2 ON m.receiverID = s2.studentID
-            ORDER BY m.sentDate DESC
-            FETCH FIRST 5 ROWS ONLY
-        """)
-        messages = cur.fetchall()
-
         cur.close()
         conn.close()
+        conn = None
 
-        # Pass all tables to the template
+        # No messages passed, only students + listings
         return render_template(
             "home.html",
             students=students,
-            listings=listings,
-            profiles=profiles,
-            messages=messages
+            listings=listings
         )
 
     except Exception as e:
+        if conn:
+            conn.close()
         return f"Error connecting to Oracle DB: {e}"
 
+
+# ----------------- SEARCH LISTINGS (FROM HERO FORM) ----------------- #
+@app.route("/search_listings", methods=["POST"])
+def search_listings():
+    location = request.form.get("location", "")
+    min_rent = request.form.get("minRent")
+    max_rent = request.form.get("maxRent")
+
+    if not min_rent:
+        min_rent = 0
+    if not max_rent:
+        max_rent = 9999999
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Students again in same shape as above
+        cur.execute("""
+            SELECT studentID,
+                   sname,
+                   email,
+                   '' AS password,
+                   gender,
+                   location
+            FROM Student
+        """)
+        students = cur.fetchall()
+
+        # Filtered listings, same shape:
+        # (sname, address, rent, status, availableFrom, studentID)
+        cur.execute("""
+            SELECT s.sname,
+                   l.address,
+                   l.rent,
+                   l.status,
+                   l.availableFrom,
+                   s.studentID
+            FROM Listing l
+            JOIN Student s ON l.studentID = s.studentID
+            WHERE l.rent BETWEEN :minRent AND :maxRent
+              AND (:location IS NULL OR :location = '' OR l.address LIKE '%' || :location || '%')
+        """, {
+            "minRent": min_rent,
+            "maxRent": max_rent,
+            "location": location
+        })
+        listings = cur.fetchall()
+
+        cur.close()
+        conn.close()
+        conn = None
+
+        return render_template(
+            "home.html",
+            students=students,
+            listings=listings
+        )
+
+    except Exception as e:
+        if conn:
+            conn.close()
+        return f"Error searching listings: {e}"
+
+
+# ----------------- STUDENT PROFILE PAGE ----------------- #
+@app.route("/student/<int:student_id>")
+def student_profile(student_id):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Student shape must match profile.html comment:
+        # (studentID, sname, email, password, gender, location)
+        cur.execute("""
+            SELECT studentID,
+                   sname,
+                   email,
+                   '' AS password,
+                   gender,
+                   location
+            FROM Student
+            WHERE studentID = :sid
+        """, {"sid": student_id})
+        student = cur.fetchone()
+
+        if not student:
+            cur.close()
+            conn.close()
+            conn = None
+            abort(404)
+
+        # Profile: (age, lifestyle)
+        cur.execute("""
+            SELECT age, lifestyle
+            FROM Profile
+            WHERE studentID = :sid
+        """, {"sid": student_id})
+        profile = cur.fetchone()
+
+        # Listings for this student:
+        # (address, rent, status, availableFrom, description)
+        cur.execute("""
+            SELECT address, rent, status, availableFrom, description
+            FROM Listing
+            WHERE studentID = :sid
+        """, {"sid": student_id})
+        listings = cur.fetchall()
+
+        cur.close()
+        conn.close()
+        conn = None
+
+        return render_template(
+            "login.html",
+            student=student,
+            profile=profile,
+            listings=listings
+        )
+
+    except Exception as e:
+        if conn:
+            conn.close()
+        return f"Error loading student profile: {e}"
+
+
+# ----------------- MAIN ----------------- #
 if __name__ == "__main__":
     app.run(debug=True)
