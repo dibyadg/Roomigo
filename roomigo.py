@@ -1,15 +1,32 @@
-import getpass
+from flask import Flask, render_template
 import oracledb
 
-def connect_db():
-    username = input("Enter Oracle username: ")
-    password = getpass.getpass("Enter Oracle password: ")
-    dsn = "oracle.csep.umflint.edu:1521/csep"  # replace if your DSN is different
+app = Flask(__name__)
 
+# ORACLE DB CONNECTION -----------------------------
+def get_db_connection():
+    connection = oracledb.connect(
+        user="bindush",
+        password="bindush",
+        dsn="141.216.26.7/csep"  
+    )
+    return connection
+# --------------------------------------------------
+
+@app.route("/")
+@app.route("/")
+def home():
     try:
-        connection = oracledb.connect(user=username, password=password, dsn=dsn)
-        print("Successfully connected to Oracle Database")
-        return connection
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM Student")
+        students = cur.fetchall()
+        cur.close()
+        conn.close()
+        return f"Connection Successful! Students: {students}"
     except Exception as e:
-        print("Connection failed:", e)
-        return None
+        return f"Error connecting to Oracle DB: {e}"
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
