@@ -5,8 +5,8 @@ app = Flask(__name__)
 
 def get_db_connection():
     return oracledb.connect(
-        user="bindush",
-        password="bindush",
+        user="dibyadg",
+        password="dibyadg",
         dsn="141.216.26.7/csep"  # Use the working DSN
     )
 
