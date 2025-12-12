@@ -26,14 +26,6 @@
             box-shadow: 0 4px 14px rgba(0,0,0,0.05);
             margin-bottom: 1.5rem;
         }
-        .profile-photo {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
         .section-title {
             font-size: 1.2rem;
             font-weight: 600;
@@ -70,14 +62,8 @@
     <!-- PROFILE HEADER -->
     <div class="profile-card">
         <div class="row g-3 align-items-center">
-            <div class="col-auto">
-                <!-- Static profile photo (put file in static/images/profile-placeholder.jpg) -->
-                <img
-                    src="{{ url_for('static', filename='images/profile-placeholder.jpg') }}"
-                    alt="Profile photo"
-                    class="profile-photo"
-                >
-            </div>
+
+            <!-- REMOVED PROFILE PHOTO -->
 
             <div class="col">
                 <h1 class="h4 mb-1">{{ student[1] }}</h1>
@@ -115,19 +101,13 @@
 
         {% if listings %}
             <div class="row">
-                {# listings tuple: (address, rent, status, availableFrom, description) #}
                 {% for l in listings %}
                 <div class="col-12 col-md-6">
                     <div class="listing-card">
-                        <!-- Static room photo (put file in static/images/room-placeholder.jpg) -->
-                        <img
-                            src="{{ url_for('static', filename='images/room-placeholder.jpg') }}"
-                            alt="Room photo"
-                            class="listing-image"
-                        >
+                        
 
                         <div class="p-3">
-                            <h5 class="mb-1">{{ l[0] }}</h5> <!-- address -->
+                            <h5 class="mb-1">{{ l[0] }}</h5>
 
                             <div class="text-muted small mb-2">
                                 ${{ l[1] }} / month
