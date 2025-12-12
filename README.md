@@ -17,4 +17,4 @@ Proper use of primary keys, foreign keys, and constraints
 **Frontend & Integration**
 Clean and simple UI for searching and browsing rooms
 Listings and profiles load dynamically from database queries
-No manual HTML editing needed — data updates instantly
+No manual HTML editing needed data updates instantly
